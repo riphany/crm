@@ -1,0 +1,249 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  CONVERTED
+  LOST
+}
+
+enum LeadSource {
+  WEBSITE
+  INSTAGRAM
+  FACEBOOK
+  GOOGLE_ADS
+  REFERRAL
+  EVENT
+  MANUAL
+  IMPORT
+  OTHER
+}
+
+enum DealStage {
+  QUALIFIED
+  MEETING
+  PROPOSAL
+  NEGOTIATION
+  WON
+  LOST
+}
+
+enum ActivityType {
+  CALL
+  EMAIL
+  MEETING
+  TASK
+  OTHER
+}
+
+enum ActivityStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users User[]
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  roleId String
+  role   Role   @relation(fields: [roleId], references: [id])
+
+  assignedLeads Lead[] @relation("LeadOwner")
+  ownedDeals    Deal[] @relation("DealOwner")
+  activities   Activity[]
+  notes        Note[]
+
+  @@index([roleId])
+  @@index([isActive])
+}
+
+model Company {
+  id        String   @id @default(uuid())
+  name      String
+  email     String?
+  phone     String?
+  website   String?
+  address   String?
+  city      String?
+  country   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contacts   Contact[]
+  leads      Lead[]
+  deals      Deal[]
+  activities Activity[]
+  notes      Note[]
+
+  @@index([name])
+}
+
+model Contact {
+  id        String   @id @default(uuid())
+  firstName String
+  lastName  String?
+  email     String?
+  phone     String?
+  jobTitle  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
+
+  deals Deal[]
+
+  activities Activity[]
+  notes      Note[]
+
+  @@index([companyId])
+  @@index([email])
+}
+
+model Lead {
+  id          String     @id @default(uuid())
+  firstName   String
+  lastName    String?
+  email       String?
+  phone       String?
+  jobTitle    String?
+  status      LeadStatus @default(NEW)
+  source      LeadSource
+  lostReason  String?
+
+  convertedAt        DateTime?
+  convertedContactId String?
+  convertedCompanyId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ownerId String?
+  owner   User? @relation("LeadOwner", fields: [ownerId], references: [id])
+
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
+
+  activities Activity[]
+
+  @@index([ownerId])
+  @@index([companyId])
+  @@index([status])
+  @@index([source])
+  @@index([createdAt])
+}
+
+model Deal {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  value       Decimal   @db.Decimal(15, 2)
+  stage       DealStage @default(QUALIFIED)
+  lostReason  String?
+
+  expectedCloseDate DateTime?
+  closedAt          DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ownerId String
+  owner   User   @relation("DealOwner", fields: [ownerId], references: [id])
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id])
+
+  activities Activity[]
+  notes      Note[]
+
+  @@index([ownerId])
+  @@index([companyId])
+  @@index([contactId])
+  @@index([stage])
+  @@index([createdAt])
+}
+
+model Activity {
+  id          String         @id @default(uuid())
+  type        ActivityType
+  subject     String
+  description String?
+  status      ActivityStatus @default(PENDING)
+  dueAt       DateTime?
+  completedAt DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  leadId    String?
+  lead      Lead?    @relation(fields: [leadId], references: [id])
+
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id])
+
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
+
+  dealId String?
+  deal   Deal? @relation(fields: [dealId], references: [id])
+
+  @@index([userId])
+  @@index([leadId])
+  @@index([contactId])
+  @@index([companyId])
+  @@index([dealId])
+  @@index([status])
+  @@index([dueAt])
+}
+
+model Note {
+  id        String   @id @default(uuid())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id])
+
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
+
+  dealId String?
+  deal   Deal? @relation(fields: [dealId], references: [id])
+
+  @@index([userId])
+  @@index([contactId])
+  @@index([companyId])
+  @@index([dealId])
+}
